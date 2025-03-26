@@ -182,6 +182,11 @@ func (v *VMNet) Start() error {
 	if err != nil {
 		return errors.New("failed to write to PID file: " + err.Error())
 	}
+
+	if err := os.Chmod(v.PIDFile, 0644); err != nil {
+		return errors.New("failed to set permissions on PID file: " + err.Error())
+	}
+
 	return nil
 }
 
