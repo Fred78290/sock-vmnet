@@ -15,7 +15,9 @@ import (
 // NetworkParams is a collection of parameters needed for vmnet
 type NetworkParams struct {
 	// Socket file descriptor
-	Fd int
+	Fd               int
+	NetworkMode      vmnet.OperationMode
+	NetworkInterface string
 	// The vm's MAC address provided by Virtualization.Framework
 	HardwareAddr net.HardwareAddr
 	// Enables debug logging
@@ -30,6 +32,10 @@ type NetworkParams struct {
 	EndAddr netaddr.IP
 	// The default ubnet mask is 255.255.255.0
 	SubnetMask netaddr.IP
+
+	InterfaceID string
+	Nat66Prefix string
+	PIDFile     string
 }
 
 // Represents a dhcpd lease, e.g:
@@ -80,10 +86,15 @@ func NewNetwork(p NetworkParams) (*Stack, error) {
 			lease: lease{},
 		},
 		vmnet: vmnet.New(vmnet.Params{
-			StartAddr:  p.StartAddr,
-			EndAddr:    p.EndAddr,
-			SubnetMask: p.SubnetMask,
-			Debug:      p.Debug,
+			Mode:             p.NetworkMode,
+			NetworkInterface: p.NetworkInterface,
+			InterfaceID:      p.InterfaceID,
+			NAT66Prefix:      p.Nat66Prefix,
+			StartAddr:        p.StartAddr,
+			EndAddr:          p.EndAddr,
+			SubnetMask:       p.SubnetMask,
+			Debug:            p.Debug,
+			PIDFile:          p.PIDFile,
 		}),
 		// Lazy && NoCopy should be the fastest mode with the least allocations
 		packetDecodeOptions: gopacket.DecodeOptions{Lazy: true, NoCopy: true},

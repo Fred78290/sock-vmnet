@@ -4,33 +4,56 @@
 const int errCallback        = 3000;
 const int errPacketCountZero = 4000;
 
-int _vmnet_start(interface_ref *interface, uint64_t *max_packet_size, uint64_t *mtu_size,
-  char* start_addr, char* end_addr, char* subnet_mask, uint32_t operation_mode, bool isolation, bool debug) {
+int _vmnet_start(interface_ref *interface, char* bridgedInterface, char* interfaceID, uint64_t *max_packet_size, uint64_t *mtu_size,
+  char* start_addr, char* end_addr, char* subnet_mask, char* nat66Prefix, uint32_t operation_mode, bool isolation, bool debug) {
   xpc_object_t interface_desc = xpc_dictionary_create(NULL, NULL, 0);
-
-  xpc_dictionary_set_string(
-    interface_desc,
-    vmnet_start_address_key,
-    start_addr
-  );
-
-  xpc_dictionary_set_string(
-    interface_desc,
-    vmnet_end_address_key,
-    end_addr
-  );
-
-  xpc_dictionary_set_string(
-    interface_desc,
-    vmnet_subnet_mask_key,
-    subnet_mask
-  );
 
   xpc_dictionary_set_uint64(
     interface_desc,
     vmnet_operation_mode_key,
     operation_mode
   );
+
+  xpc_dictionary_set_string(
+    interface_desc,
+    vmnet_interface_id_key,
+    interfaceID
+  );
+
+  if (operation_mode == VMNET_SHARED_MODE) {
+    xpc_dictionary_set_string(
+      interface_desc,
+      vmnet_start_address_key,
+      start_addr
+    );
+
+    xpc_dictionary_set_string(
+      interface_desc,
+      vmnet_end_address_key,
+      end_addr
+    );
+
+    xpc_dictionary_set_string(
+      interface_desc,
+      vmnet_subnet_mask_key,
+      subnet_mask
+    );
+
+    if (nat66Prefix && strlen(nat66Prefix) > 0) {
+      xpc_dictionary_set_string(
+        interface_desc,
+        vmnet_nat66_prefix_key,
+        nat66Prefix
+      );
+    }
+
+  } else if (operation_mode == VMNET_BRIDGED_MODE) {
+    xpc_dictionary_set_string(
+      interface_desc,
+      vmnet_shared_interface_name_key,
+      bridgedInterface
+    );
+  }
 
   xpc_dictionary_set_bool(
     interface_desc,
@@ -88,7 +111,7 @@ int _vmnet_start(interface_ref *interface, uint64_t *max_packet_size, uint64_t *
         vmnet_mtu_key
       );
 
-      if (debug) {
+      /*if (debug) {
         vmnet_dhcp_range_start = strdup(xpc_dictionary_get_string(
           interface_param,
           vmnet_start_address_key
@@ -115,7 +138,7 @@ int _vmnet_start(interface_ref *interface, uint64_t *max_packet_size, uint64_t *
         free((char*)vmnet_dhcp_range_start);
         free((char*)vmnet_dhcp_range_end);
         free((char*)vmnet_subnet_mask);
-      }
+      }*/
 
       dispatch_semaphore_signal(interface_start_semaphore);
   });

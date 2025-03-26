@@ -65,5 +65,10 @@ func allowedFromHost(packet *gopacket.Packet) bool {
 	if _, ok := layer.(*layers.IPv4); ok {
 		return true
 	}
+
+	layer = (*packet).Layer(layers.LayerTypeIPv6)
+	if _, ok := layer.(*layers.IPv6); ok {
+		return true
+	}
 	return false
 }

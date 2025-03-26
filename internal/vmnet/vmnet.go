@@ -7,6 +7,8 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"unsafe"
 
 	"github.com/rs/zerolog/log"
@@ -85,10 +87,15 @@ const (
 var vmnetPtr *VMNet
 
 type Params struct {
-	StartAddr  netaddr.IP
-	EndAddr    netaddr.IP
-	SubnetMask netaddr.IP
-	Debug      bool
+	Mode             OperationMode
+	NetworkInterface string
+	InterfaceID      string
+	NAT66Prefix      string
+	PIDFile          string
+	StartAddr        netaddr.IP
+	EndAddr          netaddr.IP
+	SubnetMask       netaddr.IP
+	Debug            bool
 }
 
 type VMNet struct {
@@ -123,17 +130,35 @@ func New(p Params) *VMNet {
 }
 
 func (v *VMNet) Start() error {
+	bridgedInterface := C.CString(v.NetworkInterface)
+	interfaceID := C.CString(v.InterfaceID)
+	nat66prefix := C.CString(v.NAT66Prefix)
 	startAddr := C.CString(v.StartAddr.String())
 	endAddr := C.CString(v.EndAddr.String())
 	subnetMask := C.CString(v.SubnetMask.String())
+
+	defer C.free(unsafe.Pointer(bridgedInterface))
+	defer C.free(unsafe.Pointer(interfaceID))
+	defer C.free(unsafe.Pointer(nat66prefix))
 
 	defer C.free(unsafe.Pointer(startAddr))
 	defer C.free(unsafe.Pointer(endAddr))
 	defer C.free(unsafe.Pointer(subnetMask))
 
 	// Create the interface. From this point, ifconfig will show both bridge100 and vmenet<n> interfaces.
-	errCode := C._vmnet_start(&v.iface, &v.mps, &v.mtu,
-		startAddr, endAddr, subnetMask, C.uint32_t(Shared), C.bool(Enabled), C.bool(v.Debug))
+	errCode := C._vmnet_start(&v.iface,
+		bridgedInterface,
+		interfaceID,
+		&v.mps,
+		&v.mtu,
+		startAddr,
+		endAddr,
+		subnetMask,
+		nat66prefix,
+		C.uint32_t(v.Mode),
+		C.bool(Enabled),
+		C.bool(v.Debug))
+
 	if errCode != successCode || v.iface == nil {
 		return maptoErr(int(errCode))
 	}
@@ -144,7 +169,19 @@ func (v *VMNet) Start() error {
 
 	// set the global pointer to the current state of self
 	vmnetPtr = v
+	// Write the PID file
+	pid := os.Getpid()
+	file, err := os.Create(v.PIDFile)
+	if err != nil {
+		return errors.New("failed to create PID file: " + err.Error())
+	}
 
+	defer file.Close()
+
+	_, err = file.WriteString(fmt.Sprintf("%d\n", pid))
+	if err != nil {
+		return errors.New("failed to write to PID file: " + err.Error())
+	}
 	return nil
 }
 
@@ -153,6 +190,9 @@ func (v *VMNet) Stop() error {
 	if errCode := C._vmnet_stop(v.iface); errCode != successCode {
 		return maptoErr(int(errCode))
 	}
+
+	os.Remove(v.PIDFile)
+
 	return nil
 }
 

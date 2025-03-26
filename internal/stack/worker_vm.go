@@ -73,6 +73,11 @@ func (s *Stack) allowedFromVM(packet *gopacket.Packet) bool {
 		// continue check
 	}
 
+	layer = (*packet).Layer(layers.LayerTypeIPv6)
+	if _, ok := layer.(*layers.IPv6); ok {
+		return true
+	}
+
 	layer = (*packet).Layer(layers.LayerTypeARP)
 	if arp, ok := layer.(*layers.ARP); ok {
 		return s.allowARP(arp)
