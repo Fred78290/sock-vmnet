@@ -11,3 +11,6 @@ install-linter:
 
 lint:
 	golangci-lint run ./...
+
+install: build
+	sudo cp build/sock-vmnet /usr/local/bin/sock-vmnet
