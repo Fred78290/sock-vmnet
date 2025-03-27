@@ -156,7 +156,7 @@ func (v *VMNet) Start() error {
 		subnetMask,
 		nat66prefix,
 		C.uint32_t(v.Mode),
-		C.bool(Enabled),
+		C.bool(Disabled),
 		C.bool(v.Debug))
 
 	if errCode != successCode || v.iface == nil {
